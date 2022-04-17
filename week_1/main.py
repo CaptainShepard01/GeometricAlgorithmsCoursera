@@ -1,5 +1,5 @@
 # If programming the algorithm from scratch is too difficult, you can use this skeleton.
-# I tried to keep it as simple as possible; as a consequence degenerate cases will not be handled and the algorithm is not robust.
+# I tried to keep it as simple as positionsible; as a consequence degenerate cases will not be handled and the algorithm is not robust.
 # As data structues for the Event queue and for the status, it uses SortedList.
 # I have left some TODOs with question marks for you to fill in. Search for TODOs and add code there, according to what you have learned in the videos.
 
@@ -11,13 +11,14 @@ import numpy as np
 import pylab as pl
 from matplotlib import collections  as mc
 
+
 class Segment:
-    def __init__(self, x1, y1, x2, y2, currentYList=None):
+    def __init__(self, x1, y1, x2, y2, current_y_list=None):
         self.x1 = x1
         self.x2 = x2
         self.y1 = y1
         self.y2 = y2
-        self.currentYList = currentYList  # stored in list to have it mutable
+        self.current_y_list = current_y_list  # stored in list to have it mutable
 
         if y1 == y2:
             raise Exception('Horizontal segments not supported.')
@@ -27,8 +28,8 @@ class Segment:
             self.slope = (y2 - y1) / (x2 - x1)
             self.intersept = y2 - self.slope * x2
 
-    def currentX(self):
-        return (self.currentYList[0] - self.intersept) / self.slope
+    def current_x(self):
+        return (self.current_y_list[0] - self.intersept) / self.slope
 
     # TODO: when inserting into the status we need a comparison operator between segments.
     # I.e. we need to implement "<" (that is __lt__) and "==" (that is __eq__).
@@ -36,34 +37,34 @@ class Segment:
     # Below I filled in x1 (self.x1 < other.x1; self.x1 == other.x1), but that is certainly wrong
     # Change these two lines to make the comparison work correctly
     def __lt__(self, other):
-        return self.currentX() < other.currentX()
+        return self.current_x() < other.current_x()
 
     def __eq__(self, other):
-        return (self.currentX() - other.currentX()) < 1e-4
+        return (self.current_x() - other.current_x()) < 1e-4
 
     def intersection(self, other):
         x1 = self.x1
         y1 = self.y1
         x2 = self.x2
         y2 = self.y2
-        x = other.x1
-        y = other.y1
+        xA = other.x1
+        yA = other.y1
         xB = other.x2
         yB = other.y2
 
         dx1 = x2 - x1
         dy1 = y2 - y1
-        dx = xB - x
-        dy = yB - y
-        DET = (-dx1 * dy + dy1 * dx)
+        dx2 = xB - xA
+        dy2 = yB - yA
+        determinant = (-dx1 * dy2 + dy1 * dx2)
 
-        # if math.fabs(DET) < DET_TOLERANCE: raise Exception('...')
-        if DET == 0:
-            raise Exception('Intersection implementation not sufficiently robust for this input.')
-        DETinv = Fraction(1, DET)
+        # if math.fabs(determinant) < DET_TOLERANCE: raise Exception('...')
+        if determinant == 0:
+            raise Exception('Intersection implementation not sufficiently robust for this input_data.')
+        det_inv = Fraction(1, determinant)
 
-        r = Fraction((-dy * (x - x1) + dx * (y - y1)), DET)
-        s = Fraction((-dy1 * (x - x1) + dx1 * (y - y1)), DET)
+        r = Fraction((-dy2 * (xA - x1) + dx2 * (yA - y1)), determinant)
+        s = Fraction((-dy1 * (xA - x1) + dx1 * (yA - y1)), determinant)
 
         if r < 0 or r > 1 or s < 0 or s > 1:
             return None
@@ -80,7 +81,7 @@ class Event:
         START = 1
         END = 2
 
-    def __init__(self, type, segment, segment2=None, ipoint=None):
+    def __init__(self, type, segment, segment2=None, intersection_point=None):
         self.type = type
         self.segment = segment
         # segment2 = None for non-intersection events
@@ -101,122 +102,120 @@ class Event:
         elif type == 0:
             # compute intersection point
             # self.key = (segment.intersection(segment2)[1], -segment.intersection(segment2)[0])
-            self.key = (ipoint[1], -ipoint[0])
+            self.key = (intersection_point[1], -intersection_point[0])
 
 
-def checkIntersection(pos, pos2, Events, Status):
-    segment = Status[pos]
-    segment2 = Status[pos2]
-    ipoint = segment.intersection(segment2)
-    if ipoint and ipoint[1] < segment.currentYList[0]:
-        ievent = Event(0, segment, segment2, ipoint)
-        index = Events.bisect_left(ievent)
+def check_intersection(position, position2, events, status):
+    segment1 = status[position]
+    segment2 = status[position2]
+    intersection_point = segment1.intersection(segment2)
+
+    if intersection_point and intersection_point[1] < segment1.current_y_list[0]:
+        intersection_event = Event(0, segment1, segment2, intersection_point)
+        index = events.bisect_left(intersection_event)
         # for simplicity we assume general position:
-        if index == len(Events) or not Events[index].key == (ipoint[1], -ipoint[0]):
-            Events.add(ievent)
+        if index == len(events) or not events[index].key == (intersection_point[1], -intersection_point[0]):
+            events.add(intersection_event)
 
 
-def handleStartEvent(segment, Events, Status):
+def handle_start_event(segment, events, status):
     # print("Inserting", segment.x1, segment.y1, segment.x2, segment.y2)
-    # TODO: Implement EventHandling for the upper endpoint of a segment
-    Status.add(segment)
+    status.add(segment)
 
-    pos = Status.index(segment)
-    if pos > 0:
-        checkIntersection(pos - 1, pos, Events, Status)
-    if pos + 2 < len(Status):
-        checkIntersection(pos, pos + 1, Events, Status)
+    position = status.index(segment)
+    if position > 0:
+        check_intersection(position - 1, position, events, status)
+    if position + 2 < len(status):
+        check_intersection(position, position + 1, events, status)
     # If you don't know where to start, you can look at the event handling for intersection events
     # print("Code is missing here.")
 
 
-def handleEndEvent(segment, Events, Status):
+def handle_end_event(segment, events, status):
     # print("Removing", segment.x1, segment.y1, segment.x2, segment.y2)
-    # TODO: Implement EventHandling for the lower endpoint of a segment
-    pos = Status.index(segment)
-    if pos > 0 and pos < len(Status)-1:
-        checkIntersection(pos - 1, pos + 1, Events, Status)
+    position = status.index(segment)
+    if 0 < position < len(status)-1:
+        check_intersection(position - 1, position + 1, events, status)
 
-    Status.remove(segment)
+    status.remove(segment)
     # If you don't know where to start, you can look at the event handling for intersection events
     # print("Code is missing here.")
 
 
-def handleIntersectionEvent(segment, segment2, Events, Status):
-    currentY = segment.currentYList[0]
-    segment.currentYList[
-        0] = currentY + 0.00001  # we need to make sure that the comparison operator is consistent with the order just before the event
+def handle_intersection_event(segment, segment2, events, status):
+    current_y = segment.current_y_list[0]
+    segment.current_y_list[
+        0] = current_y + 0.00001  # we need to make sure that the comparison operator is consistent with the order just before the event
 
     # print("Handling intersection", segment.x1, segment.y1, segment.x2, segment.y2, segment2.x1, segment2.y1, segment2.x2, segment2.y2)
 
     ## swapping is not implemented for SortedList, so we need a trick here
-    pos = Status.index(segment)
-    pos2 = Status.index(segment2)
-    # Status[pos] = segment2
-    # Status[pos2] = segment
+    position1 = status.index(segment)
+    position2 = status.index(segment2)
+    # status[position1] = segment2
+    # status[position2] = segment
     ## instead we can remove and reinsert one of the segments.
-    Status.remove(segment)
-    segment.currentYList[0] = currentY - 0.00001
-    Status.add(segment)
+    status.remove(segment)
+    segment.current_y_list[0] = current_y - 0.00001
+    status.add(segment)
 
-    pos_first = min(pos, pos2)
+    position_first = min(position1, position2)
 
-    if pos_first > 0:
-        checkIntersection(pos_first - 1, pos_first, Events, Status)
-    if pos_first + 2 < len(Status):
-        checkIntersection(pos_first + 1, pos_first + 2, Events, Status)
+    if position_first > 0:
+        check_intersection(position_first - 1, position_first, events, status)
+    if position_first + 2 < len(status):
+        check_intersection(position_first + 1, position_first + 2, events, status)
 
-    segment.currentYList[0] = currentY
+    segment.current_y_list[0] = current_y
 
 
-def write_type_event_to_file(filename, type):
+def write_type_event_to_file(filename, data):
     f = open(f"output_files/{filename}.txt", "w")
-    f.write(str(type))
+    f.write(str(data))
     f.close()
 
 
-def sweep(inputSegments):
-    EndpointEvents = []
-    for s in inputSegments:
-        EndpointEvents.append(Event(1, s))
-        EndpointEvents.append(Event(2, s))
+def sweep(input_segments):
+    endpoint_events = []
+    for s in input_segments:
+        endpoint_events.append(Event(1, s))
+        endpoint_events.append(Event(2, s))
 
-    Events = SortedList(EndpointEvents, key=lambda x: x.key)
-    Status = SortedList()
-    # Status = SortedList(key=Segment.currentX) This wouldn't work since keys are cached
+    events = SortedList(endpoint_events, key=lambda x: x.key)
+    status = SortedList()
+    # status = SortedList(key=segment.current_x) This wouldn't work since keys are cached
 
-    nEvents = 0
-    nIntersections = 0
+    number_of_events = 0
+    number_of_intersections = 0
 
-    currentYList = inputSegments[0].currentYList
+    current_y_list = input_segments[0].current_y_list
     lines = []
 
-
-    while Events:
-        e = Events.pop()
-        nEvents += 1
-        currentYList[0] = e.key[0]
+    while events:
+        e = events.pop()
+        number_of_events += 1
+        current_y_list[0] = e.key[0]
 
         if e.type == 1:
-            handleStartEvent(e.segment, Events, Status)
+            handle_start_event(e.segment, events, status)
             lines.append([[e.segment.x1, e.segment.y1], [e.segment.x2, e.segment.y2]])
 
         elif e.type == 2:
-            handleEndEvent(e.segment, Events, Status)
+            handle_end_event(e.segment, events, status)
             lines.remove([[e.segment.x1, e.segment.y1], [e.segment.x2, e.segment.y2]])
 
         else:
-            nIntersections += 1
-            handleIntersectionEvent(e.segment, e.segment2, Events, Status)
+            number_of_intersections += 1
+            handle_intersection_event(e.segment, e.segment2, events, status)
 
-        if nEvents in [3, 17, 99]:
-            write_type_event_to_file(f"event_type_{nEvents}", e.type)
-            print("Event", nEvents, ":", e.type)
+        if number_of_events in [3, 17, 99]:
+            write_type_event_to_file(f"event_type_{number_of_events}", e.type)
+            print("Event", number_of_events, ":", e.type)
 
         ## Can be useful for debugging
-        # print("Status:")
-        # for s in Status:
-        #     print(s.x1, s.y1, s.x2, s.y2, s.currentX())
+        # print("status:")
+        # for s in status:
+        #     print(s.x1, s.y1, s.x2, s.y2, s.current_x())
         #     lc = mc.LineCollection(lines, linewidths=2)
         #     fig, ax = pl.subplots()
         #     ax.add_collection(lc)
@@ -224,25 +223,25 @@ def sweep(inputSegments):
         #     ax.margins(0.1)
         #     pl.show()
 
-    write_type_event_to_file("nr_of_intersections", nIntersections)
-    print("Number of intersections:", nIntersections)
+    write_type_event_to_file("nr_of_intersections", number_of_intersections)
+    print("Number of intersections:", number_of_intersections)
 
-    write_type_event_to_file("nr_of_events", nEvents)
-    print("Number of events:", nEvents)
+    write_type_event_to_file("nr_of_events", number_of_events)
+    print("Number of events:", number_of_events)
 
 
-def readSegments(file):
-    currentYList = [0]
+def readsegments(file):
+    current_y_list = [0]
     segments = []
     with open(file) as f:
         for line in f:
-            coord = [int(x) for x in line.split()]
-            s = Segment(coord[0], coord[1], coord[2], coord[3], currentYList)
+            coordinates = [int(x) for x in line.split()]
+            s = Segment(coordinates[0], coordinates[1], coordinates[2], coordinates[3], current_y_list)
             segments.append(s)
 
     return segments
 
 
 if __name__ == "__main__":
-    input = readSegments("input_files/LineSegments2.txt")
-    sweep(input)
+    input_data = readsegments("input_files/Linesegments2.txt")
+    sweep(input_data)
